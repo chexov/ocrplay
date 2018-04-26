@@ -16,25 +16,6 @@ import Cocoa
 import AppKit
 
 
-func saveAsPNG(url: URL, image: NSImage) -> Bool {
-    guard let tiffData = image.tiffRepresentation else {
-        print("failed to get tiffRepresentation. url: \(url)")
-        return false
-    }
-    let imageRep = NSBitmapImageRep(data: tiffData)
-    guard let imageData = imageRep?.representation(using: .png, properties: [:]) else {
-        print("failed to get PNG representation. url: \(url)")
-        return false
-    }
-    do {
-        try imageData.write(to: url)
-        return true
-    } catch {
-        print("failed to write to disk. url: \(url)")
-        return false
-    }
-}
-
 func detectText(image: CGImage) {
     let convertedImage = image ;// |> adjustColors |> convertToGrayscale
     let handler = VNImageRequestHandler(cgImage: image)
@@ -54,7 +35,7 @@ func detectText(image: CGImage) {
                 }
                 
                 let scale: CGFloat = 2
-                let bounds = CGRect(x: 0, y: 0, width: 2000, height: 1500)
+                let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
                 let colorSpace = CGColorSpaceCreateDeviceRGB()
                 let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue
                 
@@ -80,9 +61,11 @@ func detectText(image: CGImage) {
 //                context?.draw(image.cgImage!, in: CGRect(origin: .zero, size: image.size))
                 
                 var numberOfWords = 0
+                var idx = 0
                 for textObservation in results {
 //                    print(textObservation)
 //                    print(textObservation.characterBoxes)
+                    
                     
                     let rect: CGRect = {
                         var rect = CGRect()
@@ -92,6 +75,16 @@ func detectText(image: CGImage) {
                         rect.size.height = textObservation.boundingBox.size.height * CGFloat(image.height)
                         return rect
                     }()
+                    
+                    var imgcopy = image.cropping(to: rect)
+                    let imgcopysize = NSSize(width: rect.width, height: rect.height)
+                    
+                    let nsimgcopy = NSImage(cgImage: imgcopy!, size: imgcopysize)
+                    let nsimgresized = resizeImage(image: nsimgcopy, width: 224, height: 224)
+                    let out = URL(fileURLWithPath:"/tmp/o_" + String(idx) + "_.png")
+                    saveAsPNG(url: out, image: nsimgresized)
+
+                    
                     // Draw square
                     context.setStrokeColor(CGColor(colorSpace: colorSpace, components: [0, 0, 1, 1])!)
                     context.setFillColor(CGColor(colorSpace: colorSpace, components: [0, 0, 1, 0.42])!)
@@ -114,6 +107,7 @@ func detectText(image: CGImage) {
 //                        }
 //                    }
                     numberOfWords += 1
+                    idx = idx + 1
                 }
 
                 let cgImage = context.makeImage()!
@@ -122,9 +116,8 @@ func detectText(image: CGImage) {
                 
                 print(imageWithNewSize)
                 print("GA1")
-                let out = URL(fileURLWithPath:"/tmp/o.jpg")
+                let out = URL(fileURLWithPath:"/tmp/o.png")
                 saveAsPNG(url: out, image: imageWithNewSize)
-                
                 
             }
         })
@@ -136,7 +129,7 @@ func detectText(image: CGImage) {
     }
 }
 
-let image1Path = "/Users/chexov/Downloads/10851778.jpg"
+let image1Path = "/Users/aleksey/Downloads/10851778.jpg"
 let image1Url = URL(fileURLWithPath: image1Path)
 let image = NSImage(contentsOfFile: image1Url.path)
 
