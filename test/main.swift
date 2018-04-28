@@ -91,7 +91,7 @@ func detectText(image: CGImage, path: String, debug: Bool) {
 let prod = "/Users/aleksey/dataset/platesmania/orig/dataset/dataset.txt"
 let debug = "/tmp/ocr/dataset.txt"
 
-if let aStreamReader = StreamReader(path: prod) {
+if let aStreamReader = StreamReader(path: debug) {
     defer {
         aStreamReader.close()
     }
