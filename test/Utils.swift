@@ -10,11 +10,13 @@ import Foundation
 import Vision
 import Cocoa
 
-func debugImage(image: CGImage, results: Array<VNTextObservation>) {
-    let scale: CGFloat = 2
+func debugImage(image: CGImage, results: Array<VNTextObservation>, path: String) {
+    let scale: CGFloat = 1
     let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
     let colorSpace = CGColorSpaceCreateDeviceRGB()
     let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue
+    let basedir = getBasedir(path: path)
+    let basename = getBasename(path: path)
     
     let context = CGContext(
         data: nil,
@@ -42,9 +44,9 @@ func debugImage(image: CGImage, results: Array<VNTextObservation>) {
     let newSize = NSSize(width: (debugimage?.width)!, height: (debugimage?.height)!)
     let imageWithNewSize = NSImage(cgImage: debugimage!, size: newSize)
     
-    print(imageWithNewSize)
-    print("GA1")
-    let out = URL(fileURLWithPath:"/tmp/o.png")
+//    print(imageWithNewSize)
+//    print("GA1")
+    let out = URL(fileURLWithPath: basedir + "/" + basename + "-debug" + ".png")
     saveAsPNG(url: out, image: imageWithNewSize)
 }
 
@@ -71,13 +73,18 @@ func getBasedir(path: String) -> String {
 }
 
 func getRect(textObservation: VNTextObservation, imgWidth: Int, imgHeight: Int) -> CGRect {
-    let rect: CGRect = {
-        var rect = CGRect()
-        rect.origin.x = textObservation.boundingBox.origin.x * CGFloat(imgWidth)
-        rect.origin.y = textObservation.boundingBox.origin.y * CGFloat(imgHeight)
-        rect.size.width = textObservation.boundingBox.size.width * CGFloat(imgWidth)
-        rect.size.height = textObservation.boundingBox.size.height * CGFloat(imgHeight)
-        return rect
-    }()
+    let x = textObservation.boundingBox.origin.x * CGFloat(imgWidth)
+    let y = textObservation.boundingBox.origin.y * CGFloat(imgHeight)
+    let width = textObservation.boundingBox.size.width * CGFloat(imgWidth)
+    let height = textObservation.boundingBox.size.height * CGFloat(imgHeight)
+    
+    var rect = CGRect()
+    rect.origin.x = x
+    rect.origin.y = y
+    rect.size.width = width
+    rect.size.height = height
+    
+    let s = rect.minX.description + " " + rect.minY.description + " " + rect.maxX.description + " " + rect.maxY.description
+//    print(s)
     return rect
 }

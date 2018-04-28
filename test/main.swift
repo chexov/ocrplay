@@ -16,14 +16,22 @@ import Cocoa
 import AppKit
 
 func saveBBox(textObservation: VNTextObservation, image: CGImage, path: String, idx: Int) {
-    let rect = getRect(textObservation: textObservation, imgWidth: image.width, imgHeight: image.height)
+    var rect = getRect(textObservation: textObservation, imgWidth: image.width, imgHeight: image.height)
     let basename = getBasename(path: path)
     let basedir = getBasedir(path: path)
     
-    var imgcopy = image.cropping(to: rect)
-    let imgcopysize = NSSize(width: rect.width, height: rect.height)
+    // Please be careful here!!!
+    rect.size.width = rect.size.width + 50
+    rect.size.height = rect.size.height + 50
     
-    let nsimgcopy = NSImage(cgImage: imgcopy!, size: imgcopysize)
+    rect.origin.y = CGFloat(image.height) -  rect.origin.y - rect.size.height + 25
+    rect.origin.x = rect.origin.x - 25
+    
+    let imgcopy = image.copy()
+    var croppedImage = imgcopy!.cropping(to: rect)
+    let croppedSize = NSSize(width: rect.width, height: rect.height)
+    
+    let nsimgcopy = NSImage(cgImage: croppedImage!, size: croppedSize)
     let out = URL(fileURLWithPath: basedir + "/" + basename + "-" + String(idx) + ".png")
     saveAsPNG(url: out, image: nsimgcopy)
 }
@@ -66,7 +74,7 @@ func detectText(image: CGImage, path: String, debug: Bool) {
                 }
                 
                 if (debug) {
-                    debugImage(image: image, results: results)
+                    debugImage(image: image, results: results, path: path)
                 }
             }
         })
@@ -80,8 +88,10 @@ func detectText(image: CGImage, path: String, debug: Bool) {
 }
 
 //let image1Path = "/Users/aleksey/Downloads/10851778.jpg"
+let prod = "/Users/aleksey/dataset/platesmania/orig/dataset/dataset.txt"
+let debug = "/tmp/ocr/dataset.txt"
 
-if let aStreamReader = StreamReader(path: "/dataset/platesmania/orig/dataset/dataset.txt") {
+if let aStreamReader = StreamReader(path: prod) {
     defer {
         aStreamReader.close()
     }
@@ -94,7 +104,7 @@ if let aStreamReader = StreamReader(path: "/dataset/platesmania/orig/dataset/dat
         // Cast the NSImage to a CGImage
         var imageRect:CGRect = CGRect(origin: CGPoint(x:0, y:0), size: NSSize(width: (image?.size.width)!, height: (image?.size.height)!))
         let imageRef = image?.cgImage(forProposedRect: &imageRect, context: nil, hints: nil)
-        detectText(image:imageRef!, path: line, debug: false)
+        detectText(image:imageRef!, path: line, debug: true)
         
         // filepath; bbox1; path_to_bbox1; bbox2; path_to_bbox2
     }
