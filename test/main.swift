@@ -15,75 +15,32 @@ import CoreML
 import Cocoa
 import AppKit
 
-
-func drawBbox(textObservation: VNTextObservation, image: CGImage, basename: String, idx: Int) {
-    let rect: CGRect = {
-        var rect = CGRect()
-        rect.origin.x = textObservation.boundingBox.origin.x * CGFloat(image.width)
-        rect.origin.y = textObservation.boundingBox.origin.y * CGFloat(image.height)
-        rect.size.width = textObservation.boundingBox.size.width * CGFloat(image.width)
-        rect.size.height = textObservation.boundingBox.size.height * CGFloat(image.height)
-        return rect
-    }()
+func saveBBox(textObservation: VNTextObservation, image: CGImage, path: String, idx: Int) {
+    let rect = getRect(textObservation: textObservation, imgWidth: image.width, imgHeight: image.height)
+    let basename = getBasename(path: path)
+    let basedir = getBasedir(path: path)
     
     var imgcopy = image.cropping(to: rect)
     let imgcopysize = NSSize(width: rect.width, height: rect.height)
     
     let nsimgcopy = NSImage(cgImage: imgcopy!, size: imgcopysize)
-    let out = URL(fileURLWithPath:"/tmp/" + basename + "-" + String(idx) + ".png")
+    let out = URL(fileURLWithPath: basedir + "/" + basename + "-" + String(idx) + ".png")
     saveAsPNG(url: out, image: nsimgcopy)
 }
 
-func debugImage(image: CGImage, results: Array<VNTextObservation>) {
-    let scale: CGFloat = 2
-    let bounds = CGRect(x: 0, y: 0, width: image.width, height: image.height)
-    let colorSpace = CGColorSpaceCreateDeviceRGB()
-    let bitmapInfo = CGImageAlphaInfo.premultipliedFirst.rawValue
-    
-    let context = CGContext(
-        data: nil,
-        width: Int(bounds.width * scale),
-        height: Int(bounds.height * scale),
-        bitsPerComponent: 8,
-        bytesPerRow: 0,
-        space: colorSpace,
-        bitmapInfo: bitmapInfo
-        )!
-    
-    context.draw(image, in: bounds)
-    
-    context.setStrokeColor(CGColor(colorSpace: colorSpace, components: [0, 0, 1, 1])!)
-    context.setFillColor(CGColor(colorSpace: colorSpace, components: [0, 0, 1, 0.42])!)
-    context.setLineWidth(4)
-    //                    context.rect
-    
-    for textObservation in results {
-        let rect: CGRect = {
-            var rect = CGRect()
-            rect.origin.x = textObservation.boundingBox.origin.x * CGFloat(image.width)
-            rect.origin.y = textObservation.boundingBox.origin.y * CGFloat(image.height)
-            rect.size.width = textObservation.boundingBox.size.width * CGFloat(image.width)
-            rect.size.height = textObservation.boundingBox.size.height * CGFloat(image.height)
-            return rect
-        }()
-    
-        context.fill(rect)
-        
-    }
-    
-    let debugimage = context.makeImage()
-    let newSize = NSSize(width: (debugimage?.width)!, height: (debugimage?.height)!)
-    let imageWithNewSize = NSImage(cgImage: debugimage!, size: newSize)
-    
-    print(imageWithNewSize)
-    print("GA1")
-    let out = URL(fileURLWithPath:"/tmp/o.png")
-    saveAsPNG(url: out, image: imageWithNewSize)
-}
+/*
+ * image: cgimage
+ * basename: filename without extension
+ * path: dir for basename results
+ * debug: fill rect's on image and save res in /tmp/o.png
+ */
 
-func detectText(image: CGImage, basename: String, path: String, debug: Bool) {
+func detectText(image: CGImage, path: String, debug: Bool) {
     let convertedImage = image ;// |> adjustColors |> convertToGrayscale
     let handler = VNImageRequestHandler(cgImage: image)
+    let basename = getBasename(path: path)
+    let basedir = getBasedir(path: path)
+    var bboxes = ""
 
     let request: VNDetectTextRectanglesRequest =
         VNDetectTextRectanglesRequest(completionHandler: { (request, error) in
@@ -100,8 +57,11 @@ func detectText(image: CGImage, basename: String, path: String, debug: Bool) {
 
                 var idx = 0
                 for textObservation in results {
-                    drawBbox(textObservation: textObservation, image: image, basename: basename, idx: idx)
+                    saveBBox(textObservation: textObservation, image: image, path: path, idx: idx)
                     
+                    let bbox = getRect(textObservation: textObservation, imgWidth: image.width, imgHeight: image.height)
+                    let s = bbox.minX.description + " " + bbox.minY.description + " " + bbox.maxX.description + " " + bbox.maxY.description + "\n"
+                    bboxes.append(s)
                     idx = idx + 1
                 }
                 
@@ -116,31 +76,25 @@ func detectText(image: CGImage, basename: String, path: String, debug: Bool) {
     } catch {
         print(error)
     }
+    try? bboxes.write(to: URL(fileURLWithPath: basedir + "/" + "bboxes-" + basename + ".txt"), atomically: true, encoding: String.Encoding.utf8)
 }
 
 //let image1Path = "/Users/aleksey/Downloads/10851778.jpg"
 
-func getBasename(path: String) -> String {
-    let arr = path.components(separatedBy: "/")
-    let filename = arr[arr.endIndex - 1]
-    let basenameArr = filename.components(separatedBy: ".")
-    return basenameArr[0]
-}
-
-if let aStreamReader = StreamReader(path: "/tmp/templates.txt") {
+if let aStreamReader = StreamReader(path: "/dataset/platesmania/orig/dataset/dataset.txt") {
     defer {
         aStreamReader.close()
     }
     
     while let line = aStreamReader.nextLine() {
+        print(line)
         let image1Url = URL(fileURLWithPath: line)
         let image = NSImage(contentsOfFile: image1Url.path)
-        let basename = getBasename(path: line)
         
         // Cast the NSImage to a CGImage
         var imageRect:CGRect = CGRect(origin: CGPoint(x:0, y:0), size: NSSize(width: (image?.size.width)!, height: (image?.size.height)!))
         let imageRef = image?.cgImage(forProposedRect: &imageRect, context: nil, hints: nil)
-        detectText(image:imageRef!, basename: basename, path: "", debug: true)
+        detectText(image:imageRef!, path: line, debug: false)
         
         // filepath; bbox1; path_to_bbox1; bbox2; path_to_bbox2
     }
