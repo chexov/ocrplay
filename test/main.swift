@@ -34,6 +34,12 @@ func saveBBox(textObservation: VNTextObservation, image: CGImage, path: String, 
     let nsimgcopy = NSImage(cgImage: croppedImage!, size: croppedSize)
     let out = URL(fileURLWithPath: basedir + "/" + basename + "-" + String(idx) + ".png")
     saveAsPNG(url: out, image: nsimgcopy)
+    
+    // save grayscaled
+    let grayscaleout = URL(fileURLWithPath: basedir + "/" + basename + "-" + String(idx) + "-grayscale.png")
+    let grayscale = rgbToGray(image: nsimgcopy)
+    saveAsPNG(url: grayscaleout, image: grayscale)
+
 }
 
 /*
